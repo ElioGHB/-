@@ -188,13 +188,13 @@ export const fallbackRules = {
 };
 
 export const platformSearchRules: Record<Platform, string[]> = {
-  dribbble: ["visual design inspiration", "campaign visual", "layout inspiration"],
-  behance: ["key visual design", "brand campaign design", "editorial layout"],
-  pinterest: ["design moodboard", "poster layout inspiration", "visual reference"],
   huaban: ["主视觉", "海报设计", "标题字"],
-  awwwards: ["landing page inspiration", "website hero design", "campaign website"],
-  fontsInUse: ["editorial typography", "title typography", "display type"],
-  unsplash: ["background texture", "product scene", "visual atmosphere"]
+  dribbble: ["视觉设计灵感", "大促画页", "版式参考"],
+  behance: ["主视觉设计", "品牌活动设计", "社论版式"],
+  pinterest: ["设计情绪板", "海报版式灵感", "视觉参考"],
+  awwwards: ["落地页灵感", "网站首屏设计", "活动网站"],
+  fontsInUse: ["编辑排版", "标题排版", "展示字体"],
+  unsplash: ["背景纹理", "产品场景", "氛围效果"]
 };
 
 export const categorySearchRules: Record<

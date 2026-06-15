@@ -6,6 +6,10 @@ interface PlatformConfig {
 }
 
 export const platforms: Record<Platform, PlatformConfig> = {
+  huaban: {
+    label: "花瓣网",
+    buildUrl: (query) => `https://huaban.com/search?q=${encodeURIComponent(query)}`
+  },
   dribbble: {
     label: "Dribbble",
     buildUrl: (query) => `https://dribbble.com/search/${encodeURIComponent(query)}`
@@ -17,10 +21,6 @@ export const platforms: Record<Platform, PlatformConfig> = {
   pinterest: {
     label: "Pinterest",
     buildUrl: (query) => `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(query)}`
-  },
-  huaban: {
-    label: "花瓣网",
-    buildUrl: (query) => `https://huaban.com/search?q=${encodeURIComponent(query)}`
   },
   awwwards: {
     label: "Awwwards",

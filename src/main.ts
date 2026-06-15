@@ -16,6 +16,7 @@ const MODEL_CONFIG_STORAGE_KEY = "design-assistant-model-config";
 let currentResult: KeywordResult | null = null;
 let toastTimer: number | undefined;
 let inputSyncTimer: number | undefined;
+let typingTimer: number | undefined;
 let isGenerating = false;
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -47,7 +48,6 @@ app.innerHTML = `
           <span>Rules only</span>
         </div>
         <textarea id="task-input" placeholder="例如：AI工具公众号封面，科技感，美漫风" rows="5"></textarea>
-        <div class="example-row" aria-label="示例任务"></div>
         <section class="model-config-panel">
           <button class="config-toggle" type="button" data-config-toggle aria-expanded="false">
             <span>大模型配置</span>
@@ -76,19 +76,7 @@ app.innerHTML = `
       </div>
     </section>
     <section class="workspace" aria-label="灵感工作台">
-      <div id="result-area" class="result-area" aria-live="polite">
-        <article class="empty-panel">
-          <div class="empty-mark" aria-hidden="true"></div>
-          <p class="eyebrow">Ready</p>
-          <h2>等待一次设计任务输入。</h2>
-          <div class="empty-grid">
-            <span>需求拆解</span>
-            <span>平台搜索词</span>
-            <span>搜索组合</span>
-            <span>AI 提示词</span>
-          </div>
-        </article>
-      </div>
+      <div id="result-area" class="result-area" aria-live="polite"></div>
     </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite">已复制</div>
@@ -96,7 +84,6 @@ app.innerHTML = `
 
 const input = document.querySelector<HTMLTextAreaElement>("#task-input")!;
 const generateButton = document.querySelector<HTMLButtonElement>("#generate-button")!;
-const exampleRow = document.querySelector<HTMLDivElement>(".example-row")!;
 const resultArea = document.querySelector<HTMLElement>("#result-area")!;
 const toast = document.querySelector<HTMLDivElement>("#toast")!;
 const modelConfigStatus = document.querySelector<HTMLElement>("#model-config-status")!;
@@ -213,18 +200,211 @@ function renderChip(text: string, extraClass = ""): string {
 function renderEmptyState(): string {
   return `
     <article class="empty-panel">
-      <div class="empty-mark" aria-hidden="true"></div>
-      <p class="eyebrow">Ready</p>
-      <h2>等待一次设计任务输入。</h2>
-      <p class="empty-copy">生成后优先给出搜索组合、平台入口和提示词，完整拆解收纳在详情面板。</p>
-      <div class="empty-grid">
-        <span>推荐搜索</span>
-        <span>平台入口</span>
-        <span>AI 提示词</span>
-        <span>关键词详情</span>
+      <div class="empty-decor-bg"></div>
+      
+      <div class="empty-logo-wrapper">
+        <div class="radar-circle pulse-1"></div>
+        <div class="radar-circle pulse-2"></div>
+        <div class="radar-circle pulse-3"></div>
+        <span class="brand-mark empty-brand-logo" id="empty-logo-interactive" aria-hidden="true"></span>
+      </div>
+
+      <div class="empty-text-wrap">
+        <span class="eyebrow-badge">★ INSPORADAR v1.0</span>
+        <h2>寻找下一站灵感设计</h2>
+        <p class="empty-copy">
+          UI 场景雷达控制台：输入设计主题，一键提炼中英搜索关键词、自媒体品类分发策略以及 AI 绘图提示词，助推高效生产。
+        </p>
+      </div>
+
+      <div class="empty-example-heading">
+        <span>设计任务灵感示例 (点击一键填入并触发雷达)</span>
+      </div>
+
+      <div class="empty-cards-wrapper" id="empty-cards-carousel">
+        <div class="empty-example-card" data-example-index="0" style="--card-theme-color: #a483e6; --card-glow-color: rgba(164, 131, 230, 0.15)">
+          <div class="card-icon-wrap" style="background: rgba(164, 131, 230, 0.12)">
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="card-content">
+            <h3>AI智能工具公众号封图</h3>
+            <p>“AI工具公众号封面，科技感，美漫风”</p>
+            <div class="card-tags">
+              <span>科技感</span>
+              <span>美漫风</span>
+              <span>高对比</span>
+            </div>
+          </div>
+          <div class="card-action-pill">
+            <span>一键导入</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <div class="empty-example-card" data-example-index="1" style="--card-theme-color: #ff6b4a; --card-glow-color: rgba(255, 107, 74, 0.15)">
+          <div class="card-icon-wrap" style="background: rgba(255, 107, 74, 0.12)">
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          </div>
+          <div class="card-content">
+            <h3>618电商大促活动视觉</h3>
+            <p>“618电商大促主视觉，高转化，热烈促销感”</p>
+            <div class="card-tags">
+              <span>高转化</span>
+              <span>热烈大促</span>
+              <span>红金配色</span>
+            </div>
+          </div>
+          <div class="card-action-pill">
+            <span>一键导入</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <div class="empty-example-card" data-example-index="2" style="--card-theme-color: #2a9d8f; --card-glow-color: rgba(42, 157, 143, 0.15)">
+          <div class="card-icon-wrap" style="background: rgba(42, 157, 143, 0.12)">
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <div class="card-content">
+            <h3>SaaS云官网产品首屏</h3>
+            <p>“SaaS 官网首屏，极简，高级感”</p>
+            <div class="card-tags">
+              <span>极简主义</span>
+              <span>高级版式</span>
+              <span>科技蓝灰</span>
+            </div>
+          </div>
+          <div class="card-action-pill">
+            <span>一键导入</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <div class="empty-example-card" data-example-index="3" style="--card-theme-color: #f4a261; --card-glow-color: rgba(244, 162, 97, 0.15)">
+          <div class="card-icon-wrap" style="background: rgba(244, 162, 97, 0.12)">
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="card-content">
+            <h3>发布会未来感特展海报</h3>
+            <p>“品牌发布会海报，未来感，强视觉冲击”</p>
+            <div class="card-tags">
+              <span>未来纪元</span>
+              <span>强视觉张力</span>
+              <span>黑曜反光</span>
+            </div>
+          </div>
+          <div class="card-action-pill">
+            <span>一键导入</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
       </div>
     </article>
   `;
+}
+
+function initInteractiveEmptyPanel(): void {
+  const logo = document.querySelector<HTMLElement>("#empty-logo-interactive");
+  const cards = document.querySelectorAll<HTMLElement>(".empty-example-card");
+
+  if (logo) {
+    logo.addEventListener("mousemove", (e: MouseEvent) => {
+      const rect = logo.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      logo.style.transform = `perspective(300px) rotateX(${-y / 4.5}deg) rotateY(${x / 4.5}deg) translate3d(${x / 2.5}px, ${y / 2.5}px, 15px)`;
+    });
+
+    logo.addEventListener("mouseleave", () => {
+      logo.style.transform = "perspective(300px) rotateX(0deg) rotateY(0deg) translate3d(0, 0, 0)";
+    });
+
+    logo.addEventListener("touchstart", () => {
+      logo.style.transform = "scale(0.92)";
+    });
+    logo.addEventListener("touchend", () => {
+      logo.style.transform = "scale(1)";
+    });
+  }
+
+  cards.forEach((card) => {
+    card.addEventListener("mousemove", (e: MouseEvent) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      card.style.transform = `perspective(600px) rotateX(${-y / 12}deg) rotateY(${x / 12}deg) translateY(-4px)`;
+    });
+
+    card.addEventListener("mouseleave", () => {
+      card.style.transform = "perspective(600px) rotateX(0deg) rotateY(0deg) translateY(0)";
+    });
+
+    card.addEventListener("click", () => {
+      const indexAttr = card.getAttribute("data-example-index");
+      if (indexAttr === null) return;
+      const index = parseInt(indexAttr, 10);
+      const taskText = examples[index];
+
+      card.style.transform = "scale(0.96) translateY(2px)";
+      window.setTimeout(() => {
+        card.style.transform = "perspective(600px) rotateX(0deg) rotateY(0deg) translateY(0)";
+      }, 120);
+
+      let currentLen = 0;
+      input.value = "";
+      input.focus();
+      updateGenerateState();
+
+      window.clearInterval(typingTimer);
+      typingTimer = window.setInterval(() => {
+        currentLen++;
+        input.value = taskText.slice(0, currentLen);
+        updateGenerateState();
+
+        if (currentLen >= taskText.length) {
+          window.clearInterval(typingTimer);
+          
+          generateButton.classList.add("focus-pulse-highlight");
+          window.setTimeout(() => {
+            generateButton.classList.remove("focus-pulse-highlight");
+          }, 1500);
+        }
+      }, 15);
+    });
+  });
+
+  const carousel = document.querySelector<HTMLElement>("#empty-cards-carousel");
+  if (carousel) {
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+
+    carousel.addEventListener("mousedown", (e: MouseEvent) => {
+      isDown = true;
+      startX = e.pageX - carousel.offsetLeft;
+      scrollLeft = carousel.scrollLeft;
+    });
+
+    carousel.addEventListener("mouseleave", () => {
+      isDown = false;
+    });
+
+    carousel.addEventListener("mouseup", () => {
+      isDown = false;
+    });
+
+    carousel.addEventListener("mousemove", (e: MouseEvent) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - carousel.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      carousel.scrollLeft = scrollLeft - walk;
+    });
+  }
+}
+
+function setEmptyState(): void {
+  resultArea.innerHTML = renderEmptyState();
+  initInteractiveEmptyPanel();
 }
 
 function renderAnalysisSummary(result: KeywordResult): string {
@@ -277,7 +457,7 @@ function renderCategorySearches(result: KeywordResult): string {
     <article class="desk-panel search-panel">
       <div class="section-heading">
         <h2>分品类搜索</h2>
-        <span>Logo / poster / texture / wallpaper / type</span>
+        <span>Logo / 海报 / 纹理 / 壁纸 / 字体</span>
       </div>
       <div class="category-grid">
         ${result.categorySearches
@@ -290,7 +470,6 @@ function renderCategorySearches(result: KeywordResult): string {
                 </div>
                 <div class="query-stack">
                   ${renderChip(item.zhQuery)}
-                  ${renderChip(item.enQuery)}
                 </div>
               </section>
             `
@@ -306,7 +485,7 @@ function renderAestheticInsights(result: KeywordResult): string {
     <article class="desk-panel insight-block">
       <div class="section-heading">
         <h2>审美拆解</h2>
-        <span>Aesthetic breakdown</span>
+        <span>审美视角与执行技巧</span>
       </div>
       <div class="insight-grid">
         ${result.aestheticInsights
@@ -330,7 +509,7 @@ function renderDesignDirections(result: KeywordResult): string {
     <article class="desk-panel direction-block">
       <div class="section-heading">
         <h2>可执行设计方向</h2>
-        <span>Ready-to-start directions</span>
+        <span>可以直接使用的设计方向</span>
       </div>
       <div class="direction-list">
         ${result.designDirections
@@ -360,7 +539,7 @@ function renderPromptPanel(result: KeywordResult): string {
     <article class="desk-panel prompt-card">
       <div class="section-heading">
         <h2>场景化提示词</h2>
-        <span>Prompt modes</span>
+        <span>不同应用场景提示词</span>
       </div>
       <div class="prompt-scenario-list">
         ${result.promptScenarios
@@ -370,11 +549,8 @@ function renderPromptPanel(result: KeywordResult): string {
                 <div class="prompt-mode-head">
                   <div>
                     <h3>${scenario.label}</h3>
-                    <p>${scenario.description}</p>
                   </div>
-                  ${scenario.recommended ? "<span>推荐</span>" : ""}
                 </div>
-                <p class="prompt-meaning">${escapeHtml(scenario.interpretation.realMeaning)}</p>
                 <div class="prompt-keywords">${scenario.keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join("")}</div>
                 <button class="prompt-copy" type="button" data-copy="${encodeURIComponent(scenario.zh)}">${escapeHtml(scenario.zh)}</button>
               </section>
@@ -405,8 +581,7 @@ function renderFullResultText(result: KeywordResult): string {
     `应用场景：${result.analysis.useCase.join(" / ")}`,
     `情绪方向：${result.analysis.mood.join(" / ")}`,
     "",
-    `中文关键词：${result.chineseKeywords.join(" / ")}`,
-    `英文关键词：${result.englishKeywords.join(" / ")}`,
+    `关键词：${result.chineseKeywords.join(" / ")}`,
     "",
     "平台搜索词",
     platformLines,
@@ -437,7 +612,7 @@ function renderPromptFocus(result: KeywordResult): string {
           .map(
             (scenario) => `
               <button type="button" data-prompt-tab="${scenario.id}" aria-selected="${scenario.id === activeScenario.id}">
-                ${getPromptTabLabel(scenario.id)}${scenario.recommended ? "<span>推荐</span>" : ""}
+                ${getPromptTabLabel(scenario.id)}
               </button>
             `
           )
@@ -451,11 +626,8 @@ function renderPromptFocus(result: KeywordResult): string {
                 <div class="prompt-mode-head">
                   <div>
                     <h3>${scenario.label}</h3>
-                    <p>${scenario.description}</p>
                   </div>
-                  ${scenario.recommended ? "<span>推荐</span>" : ""}
                 </div>
-                <p class="prompt-meaning">${escapeHtml(scenario.interpretation.realMeaning)}</p>
                 <div class="prompt-keywords">${scenario.keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join("")}</div>
                 <button class="prompt-copy" type="button" data-copy="${encodeURIComponent(scenario.zh)}">${escapeHtml(scenario.zh)}</button>
               </section>
@@ -490,12 +662,8 @@ function renderDetails(result: KeywordResult): string {
       </div>
       <div class="detail-panel" data-detail-panel="keywords">
         <section>
-          <h3>中文关键词</h3>
+          <h3>关键词</h3>
           <div class="chip-grid">${result.chineseKeywords.map((item) => renderChip(item)).join("")}</div>
-        </section>
-        <section>
-          <h3>英文关键词</h3>
-          <div class="chip-grid">${result.englishKeywords.map((item) => renderChip(item)).join("")}</div>
         </section>
       </div>
       <div class="detail-panel" data-detail-panel="category" hidden>${renderCategorySearches(result)}</div>
@@ -511,7 +679,7 @@ function renderResult(result: KeywordResult, statusLabel = result.promptSourceLa
     <div class="result-workbench">
       <header class="result-header">
         <div>
-          <p class="eyebrow">Current Brief</p>
+          <p class="eyebrow">当前设计需求</p>
           <h2>${escapeHtml(result.sourceInput)}</h2>
         </div>
         <div class="result-status" aria-label="生成状态">
@@ -527,17 +695,14 @@ function renderResult(result: KeywordResult, statusLabel = result.promptSourceLa
         <article class="focus-card analysis-focus">
           <div class="section-heading">
             <h2>需求摘要</h2>
-            <span>Analysis</span>
+            <span>智能需求拆解</span>
           </div>
           <div class="summary-strip">${renderAnalysisSummary(result)}</div>
         </article>
         <article class="focus-card platform-focus">
           <div class="section-heading">
             <h2>平台搜索</h2>
-            <span>Copy links</span>
-          </div>
-          <div class="query-rail" aria-label="推荐搜索词">
-            ${result.searchCombinations.slice(0, 4).map((item) => renderChip(item, "combo-chip")).join("")}
+            <span>检索平台一键搜索</span>
           </div>
           ${renderPlatformActions(result)}
         </article>
@@ -547,19 +712,6 @@ function renderResult(result: KeywordResult, statusLabel = result.promptSourceLa
     </div>
   `;
 }
-
-examples.forEach((example) => {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "example-chip";
-  button.textContent = example;
-  button.addEventListener("click", () => {
-    input.value = example;
-    input.focus();
-    updateGenerateState();
-  });
-  exampleRow.append(button);
-});
 
 configToggle.addEventListener("click", () => {
   const isExpanded = configToggle.getAttribute("aria-expanded") === "true";
@@ -702,12 +854,12 @@ document.addEventListener("click", (event) => {
   if (resetTarget) {
     currentResult = null;
     input.value = "";
-    resultArea.innerHTML = renderEmptyState();
+    setEmptyState();
     updateGenerateState();
     input.focus();
   }
 });
 
-resultArea.innerHTML = renderEmptyState();
+setEmptyState();
 syncModelConfigForm();
 updateGenerateState();

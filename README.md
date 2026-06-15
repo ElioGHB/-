@@ -15,6 +15,8 @@
 
 - Vite
 - TypeScript
+- Express
+- Google Gemini API / OpenAI-compatible Chat Completions API
 - 原生 HTML / CSS / DOM
 - ESLint
 
@@ -28,7 +30,7 @@ npm run dev
 启动后打开终端里显示的本地地址，通常是：
 
 ```text
-http://127.0.0.1:5173/
+http://127.0.0.1:3000/
 ```
 
 ## 常用命令
@@ -37,7 +39,7 @@ http://127.0.0.1:5173/
 npm run dev
 ```
 
-启动本地开发服务。
+启动本地 Express + Vite 开发服务。
 
 ```bash
 npm run typecheck
@@ -55,7 +57,13 @@ npm run lint
 npm run build
 ```
 
-生成生产构建文件到 `dist/`。
+生成前端构建文件，并打包服务端入口到 `dist/server.cjs`。
+
+```bash
+npm run start
+```
+
+运行生产构建后的服务。
 
 ## 大模型配置
 
@@ -63,12 +71,18 @@ npm run build
 
 方式一：在页面内填写“大模型配置”。配置会保存在当前浏览器本地，不会提交到仓库。
 
-方式二：复制 `.env.example` 为 `.env`，然后填写：
+方式二：复制 `.env.example` 为 `.env`，然后填写兼容 OpenAI Chat Completions 的接口：
 
 ```bash
 DESIGN_ASSISTANT_MODEL_API_URL=https://api.openai.com/v1/chat/completions
 DESIGN_ASSISTANT_MODEL_API_KEY=your_api_key
 DESIGN_ASSISTANT_MODEL=your_model_name
+```
+
+也可以只配置 Gemini：
+
+```bash
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 注意：`.env` 已被 `.gitignore` 排除，不要把真实 API Key 上传到 GitHub。
@@ -78,6 +92,7 @@ DESIGN_ASSISTANT_MODEL=your_model_name
 ```text
 .
 ├── index.html
+├── server.ts
 ├── src
 │   ├── main.ts
 │   ├── styles.css
@@ -87,7 +102,8 @@ DESIGN_ASSISTANT_MODEL=your_model_name
 │       ├── platformSearch.ts
 │       ├── promptAnalysisApi.ts
 │       └── rules.ts
-├── vite.config.js
+├── vite.config.ts
+├── metadata.json
 ├── package.json
 ├── tsconfig.json
 └── eslint.config.js
@@ -96,8 +112,8 @@ DESIGN_ASSISTANT_MODEL=your_model_name
 ## 在其他电脑上修改
 
 ```bash
-git clone https://github.com/ElioGHB/-.git
-cd -
+git clone https://github.com/ElioGHB/design.git
+cd design
 npm install
 npm run dev
 ```
@@ -124,7 +140,11 @@ git pull
 npm run build
 ```
 
-然后将生成的 `dist/` 目录部署到静态站点服务即可。
+然后运行：
+
+```bash
+npm run start
+```
 
 ## 开源协议
 

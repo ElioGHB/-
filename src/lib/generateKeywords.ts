@@ -213,7 +213,13 @@ function firstTerm(items: string[], fallback: string): string {
   return items.find((item) => item.trim().length > 0) ?? fallback;
 }
 
-function createShortSearchPhrases(analysis: RequirementAnalysis): { zh: string[]; en: string[] } {
+function createShortSearchPhrases(
+  analysis: RequirementAnalysis,
+  designTypeMatch: MatchedTerms,
+  themeContentMatch: MatchedTerms,
+  visualStyleMatch: MatchedTerms,
+  useCaseMatch: MatchedTerms
+): { zh: string[]; en: string[] } {
   if (isCommerceCampaign(analysis)) {
     return {
       zh: ["618大促", "促销海报", "电商主视觉", "活动会场"],
@@ -228,27 +234,42 @@ function createShortSearchPhrases(analysis: RequirementAnalysis): { zh: string[]
     };
   }
 
-  const theme = firstTerm(analysis.themeContent, "创意主题");
-  const designType = firstTerm(analysis.designType, "视觉设计");
-  const style = firstTerm(analysis.visualStyle, "现代感");
-  const useCase = firstTerm(analysis.useCase, "灵感搜索");
+  const themeZh = firstTerm(analysis.themeContent, "创意主题");
+  const designTypeZh = firstTerm(analysis.designType, "视觉设计");
+  const styleZh = firstTerm(analysis.visualStyle, "现代感");
+  const useCaseZh = firstTerm(analysis.useCase, "灵感搜索");
+
+  const themeEnRaw = themeContentMatch.matched ? themeContentMatch.en[0] : "";
+  const englishInTheme = themeContentMatch.zh[0]?.match(/[A-Za-z0-9\s-_]{3,}/g)?.[0]?.trim() || "";
+  const themeEn = themeEnRaw || englishInTheme || "design";
+
+  const designTypeEn = designTypeMatch.matched ? designTypeMatch.en[0] : "visual design";
+  const styleEn = visualStyleMatch.matched ? visualStyleMatch.en[0] : "modern layout";
+  const useCaseEn = useCaseMatch.matched ? useCaseMatch.en[0] : "inspiration";
 
   return {
-    zh: uniq([theme, designType, style, useCase]).slice(0, 4),
-    en: ["visual design", "key visual", "poster layout", "design inspiration"]
+    zh: uniq([themeZh, designTypeZh, styleZh, useCaseZh]).slice(0, 4),
+    en: uniq([
+      `${themeEn} ${designTypeEn}`,
+      `${styleEn} ${designTypeEn}`,
+      `${themeEn} ${useCaseEn}`,
+      `${styleEn} ${useCaseEn}`
+    ]).slice(0, 4)
   };
 }
 
-function createPlatformTerms(analysis: RequirementAnalysis): Record<Platform, string[]> {
-  const phrases = createShortSearchPhrases(analysis);
+function createPlatformTerms(
+  analysis: RequirementAnalysis,
+  phrases: { zh: string[]; en: string[] }
+): Record<Platform, string[]> {
   const platformLeadTerms: Record<Platform, string> = {
-    dribbble: phrases.en[1] ?? "key visual",
-    behance: phrases.en[1] ?? "campaign visual",
-    pinterest: phrases.en[0] ?? "design moodboard",
     huaban: phrases.zh[0] ?? "主视觉",
-    awwwards: isCommerceCampaign(analysis) ? "campaign landing" : "website hero",
-    fontsInUse: "title typography",
-    unsplash: phrases.en[3] ?? "visual background"
+    dribbble: phrases.zh[1] ?? phrases.zh[0] ?? "视觉设计",
+    behance: phrases.zh[2] ?? phrases.zh[0] ?? "创意设计",
+    pinterest: phrases.zh[3] ?? phrases.zh[0] ?? "设计灵感",
+    awwwards: isCommerceCampaign(analysis) ? "大促会场设计" : "网页设计",
+    fontsInUse: "海报排版",
+    unsplash: phrases.zh[0] ?? "设计背景"
   };
 
   return (Object.keys(platformSearchRules) as Platform[]).reduce<Record<Platform, string[]>>((acc, platform) => {
@@ -257,9 +278,8 @@ function createPlatformTerms(analysis: RequirementAnalysis): Record<Platform, st
   }, {} as Record<Platform, string[]>);
 }
 
-function createSearchCombinations(analysis: RequirementAnalysis): string[] {
-  const phrases = createShortSearchPhrases(analysis);
-  return uniq([phrases.zh[0], phrases.zh[1], phrases.en[0], phrases.en[1]]).filter(Boolean);
+function createSearchCombinations(phrases: { zh: string[]; en: string[] }): string[] {
+  return uniq([phrases.zh[0], phrases.zh[1], phrases.zh[2], phrases.zh[3]]).filter(Boolean);
 }
 
 function createCategorySearches(analysis: RequirementAnalysis, englishKeywords: string[]) {
@@ -385,40 +405,28 @@ function createPromptText(id: PromptScenarioId, interpretation: PromptInterpreta
     return interpretation.prompt.trim();
   }
 
+  const keywords = interpretation.pageKeywords || "";
+  const keyColor = interpretation.keyColor || "品牌主色";
+  const glowColor = interpretation.glowColor || "柔和光效";
+  const tone = interpretation.backgroundTone || "浅色";
+
   if (id === "icon") {
-    return [
-      "1、生成对象为独立图标 / Logo 符号，不生成页面截图，不生成海报。",
-      `2、图标要表达${interpretation.pageKeywords}，核心概念清晰，一眼能识别。`,
-      "3、造型以简洁几何结构为主，强调轮廓、正负形、比例和小尺寸识别度。",
-      `4、配色使用${interpretation.keyColor}为主色，少量${interpretation.glowColor}作为高光或辅助色，避免复杂渐变堆叠。`,
-      "5、整体要高级、克制、有科技感，但保持温暖、向上、有生命力。",
-      "6、输出为居中构图、干净背景、矢量感强、边缘清晰的图标方案，避免文字、水印、复杂场景和真实照片。"
-    ].join("\n");
+    return `极简高级排版，"${keywords}"的矢量图标和设计Logo，扁平UI图标设计，简单的几何结构，纯色干净背景，主色为${keyColor}，辅助色为${glowColor}，无文字，比例 --ar 1:1`;
   }
 
   if (id === "asset") {
-    return [
-      "1、生成对象为无文字背景 / 纹理 / 氛围素材，不生成完整页面，不生成海报。",
-      `2、素材要像${interpretation.pageKeywords}，适合后期叠加 UI、标题或品牌信息。`,
-      `3、背景可以用${interpretation.backgroundTone}底，但不要恐怖、压抑，不要出现具体文案。`,
-      `4、光效用柔和${interpretation.keyColor}，少量${interpretation.glowColor}弥散光，控制亮度和层次。`,
-      "5、整体要温暖、向上、有生命力、有仪式感，材质干净、有呼吸感。",
-      "6、留白充足，画面中心和边缘都要可承载内容，避免人物大脸、复杂物体和模板化装饰。"
-    ].join("\n");
+    return `抽象艺术图形背景设计，高级氛围壁纸，中心留出干净大面积空间方便叠加内容，寓意"${keywords}"，高雅纹理，高级柔和光束，主调为${keyColor}，微发散的${glowColor}色，${tone === "深色" ? "深色模式美学" : "浅色模式干净主题"}，比例 --ar 16:9`;
   }
 
-  return [
-    "1、页面尺寸为 iPhone 截图比例，保留状态栏，750×1624。",
-    `2、页面要像${interpretation.pageKeywords}，不要像海报。`,
-    `3、背景可以用${interpretation.backgroundTone}底，但不要恐怖、压抑。`,
-    `4、光效用柔和${interpretation.keyColor}，少量${interpretation.glowColor}弥散光。`,
-    "5、整体要温暖、向上、有生命力、有仪式感。",
-    "6、留白充足，页面要有真实 App 截图感。"
-  ].join("\n");
+  if (id === "ui") {
+    return `干净且具有未来感的App用户界面截图设计，包含"${keywords}"，功能排版，响应式组件结构，精美干净的卡片，现代数字字体排版，主导色为${keyColor}，高保真现代UI工具包设计，比例 --ar 9:16`;
+  }
+
+  return `极具视觉冲击力的"${keywords}"构图设计，唯美排版，优雅艺术海报风格，${tone === "深色" ? "深色氛围" : "浅色氛围"}，柔和的空间弥散光配合${keyColor}和${glowColor}色，比例 --ar 3:4`;
 }
 
 function isValidPromptText(prompt: string): boolean {
-  return ["1、", "2、", "3、", "4、", "5、", "6、"].every((prefix) => prompt.includes(prefix));
+  return typeof prompt === "string" && prompt.trim().length > 0;
 }
 
 function createPromptScenarios(analysis: RequirementAnalysis, options: PromptGenerationOptions = {}): PromptScenario[] {
@@ -495,18 +503,27 @@ function createCodexWorkflowPrompt(resultDraft: {
     "4. 如果可以联网，请立刻搜索参考图并列出图片链接；如果不能联网，就输出搜索入口和检索策略。",
     "5. 对参考方向做审美拆解：构图、字体、色彩、材质、信息层级。",
     "6. 总结 3-5 个今天就能上手的设计方向，每个方向包含执行步骤。",
-    "7. 最后用 6 条移动端截图提示词格式输出提示词：750×1624、保留状态栏、像真实 App 页面、不要像海报、匹配关键词色彩和柔和弥散光。"
+    "7. 最后根据不同设计类型输出生产环境就绪的首选项 Midjourney 提示词，保持清爽英文或无描述性无编号格式，去除 750*1624 等硬编码尺寸，使用 standard aspect ratio 参数（如 --ar 9:16, --ar 1:1, --ar 16:9, --ar 3:4 区分不同设计场景）。"
   ].join("\n");
 }
 
 export function generateKeywords(input: string, options: PromptGenerationOptions = {}): KeywordResult {
   const analysis = createAnalysis(input);
   const keywordPool = createKeywordPool(input);
-  const platformSearchTerms = createPlatformTerms(analysis);
+
+  const designTypeMatch = matchRules(input, requirementRules.designType, fallbackRules.designType);
+  const themeContentMatch = matchRules(input, requirementRules.themeContent, fallbackRules.themeContent, {
+    preserveSource: true
+  });
+  const visualStyleMatch = matchRules(input, requirementRules.visualStyle, fallbackRules.visualStyle);
+  const useCaseMatch = matchRules(input, requirementRules.useCase, fallbackRules.useCase);
+
+  const phrases = createShortSearchPhrases(analysis, designTypeMatch, themeContentMatch, visualStyleMatch, useCaseMatch);
+  const platformSearchTerms = createPlatformTerms(analysis, phrases);
   const categorySearches = createCategorySearches(analysis, keywordPool.en);
   const aestheticInsights = createAestheticInsights(analysis);
   const designDirections = createDesignDirections(analysis, keywordPool.zh);
-  const searchCombinations = createSearchCombinations(analysis);
+  const searchCombinations = createSearchCombinations(phrases);
   const promptSource = options.promptSource ?? "local";
   const promptScenarios = createPromptScenarios(analysis, options);
   const aiPrompts = createAiPrompts(promptScenarios);

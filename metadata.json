@@ -1,0 +1,8 @@
+{
+  "name": "设计灵感搜索助手",
+  "description": "UI 设计师的灵感搜索控制台与 AI 场景提示词生成器 (InspoRadar)",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
